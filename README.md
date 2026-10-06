@@ -4,9 +4,9 @@ A free browser Quarto-style game with a twist: **you choose the piece your oppon
 
 No build step, no dependencies — just open it and play. Installable as an app (PWA) with offline play.
 
-[![A finished row win](docs/shot-win.png)](docs/shot-win.png)
+![A finished row win](docs/shot-row-win.png)
 
-![Four moves to a blue row win](docs/demo-win.gif)
+![Four moves to a blue row win](docs/shot-diag-win.png)
 
 ## Play it
 
@@ -16,8 +16,7 @@ python -m http.server 8000
 # open http://localhost:8000
 ```
 
-Or enable GitHub Pages on this repo and play from your `github.io` URL (HTTPS also unlocks install + offline mode).
-
+or [Play Here](malcolmblakeman.github.io/Dictate)
 ## Modes
 
 - **Classic** — the 10 rows, columns, and diagonals.
@@ -50,7 +49,3 @@ Ten hand-checked, engine-verified puzzles in two wings of five: spot the win, fi
 | `index.html` | The whole game (board, engine, AI, puzzles) |
 | `manifest.json`, `icon.svg`, `sw.js` | PWA shell: installability, icon, offline cache |
 | `docs/` | Screenshots and gameplay GIF for this readme |
-
-## Credits
-
-Made by [Malcolm Blakeman](https://github.com/malcolmblakeman). There is an easter egg.
