@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=no">
+<meta name="description" content="Dictate: give your opponent pieces, make four share a trait. Classic Quarto plus optional 2x2 mode, with AI opponent.">
+<meta name="theme-color" content="#0e7490">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Dictate</title>
+<style>
+:root { color-scheme: light; --bg: #f3efe4; --card: #ffffff; --line: #d9d2bd; --soft: #fbf8ee; --cell: #ffffff;
+        --fg: #1d2532; --mut: #5d6874; --acc: #0e7490; --gold: #b45309; --good: #15803d; --bad: #b91c1c;
+        --btn: #ffffff; --btn-hi: #eef2f7; --shadow: rgba(60,50,20,.14); }
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(1200px 400px at 50% -80px, #fffdf4 0%, var(--bg) 60%) fixed, var(--bg);
+       color: var(--fg); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body.dark { color-scheme: dark; --bg: #0b0e14; --card: #11151d; --line: #2a3342; --soft: #151a24; --cell: #11151d;
+            --fg: #e6e9f0; --mut: #9aa3b2; --acc: #22d3ee; --gold: #fbbf24; --good: #4ade80; --bad: #f87171;
+            --btn: #1a2230; --btn-hi: #243145; --shadow: rgba(0,0,0,.45); }
+body.dark { background: radial-gradient(1200px 400px at 50% -80px, #16202e 0%, var(--bg) 60%) fixed, var(--bg); }
+header { padding: 18px 22px 4px; text-align: center; }
+header h1 { margin: 0; font-size: clamp(26px, 5.5vw, 40px); font-weight: 900; letter-spacing: .04em; }
+.sub { color: var(--mut); margin: 4px 0 0; }
+#themeToggle { position: fixed; top: 12px; right: 64px; z-index: 60; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--card); border: 1px solid #b9c2cf; }
+#infoBtn { position: fixed; top: 12px; right: 12px; z-index: 60; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--card); border: 1px solid #b9c2cf; font-size: 20px; font-weight: 800; color: var(--fg); }
+#puzzleBtn { position: fixed; top: 12px; right: 116px; z-index: 60; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--card); border: 1px solid #b9c2cf; font-size: 20px; color: var(--fg); }
+#themeToggle:hover, #infoBtn:hover, #puzzleBtn:hover { border-color: var(--acc); transform: translateY(-1px); }
+#themeToggle svg { width: 22px; height: 22px; display: block; }
+section { max-width: 1080px; margin: 0 auto; padding: 6px 18px 20px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+button { background: var(--btn); color: var(--fg); border: 1px solid #b9c2cf; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; transition: background .12s ease, border-color .12s ease, transform .06s ease; }
+body.dark button { border-color: #334155; }
+button:hover:not(:disabled) { background: var(--btn-hi); border-color: var(--acc); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: #0e7490; border-color: #0e7490; font-weight: 700; color: #fff; }
+button.ghost { background: transparent; }
+kbd { background: #eef2f7; border: 1px solid #b9c2cf; border-radius: 4px; padding: 0 5px; font-size: 12px; }
+body.dark kbd { background: #1a2230; border-color: #334155; }
+#gameMain { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+#boardWrap { display: flex; flex-direction: column; gap: 8px; min-width: 0; width: min(550px, 94vw); }
+#boardRow { display: flex; gap: 8px; align-items: stretch; }
+#evalCol { display: flex; flex-direction: column; gap: 4px; width: 26px; flex: none; }
+#evalbar { flex: 1; min-height: 120px; border: 2px solid var(--fg); border-radius: 10px; background: #151515; position: relative; overflow: hidden; box-shadow: 0 2px 10px var(--shadow); }
+#evalwhite { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: #f5f5f5; transition: height .3s ease; }
+#evalnum { font-size: 11px; color: var(--mut); text-align: center; font-variant-numeric: tabular-nums; }
+#boardCard { border: 1px solid var(--line); border-radius: 10px; background: var(--soft); padding: 14px; width: 100%; box-shadow: 0 8px 24px var(--shadow); }
+#board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.cell { background: var(--cell); border: 1px solid var(--line); border-radius: 10px; display: grid; place-items: center; cursor: pointer; aspect-ratio: 1 / 1; min-width: 0; min-height: 0; padding: 0; overflow: hidden; }
+.cell.filled { cursor: default; }
+.cell.filled .piece { cursor: default; }
+#board.live .cell:not(.filled):hover { background: #f2ecdc; border-color: var(--acc); }
+body.dark #board.live .cell:not(.filled):hover { background: #1b2230; }
+.cell.win { background: #fff8db; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(251,191,36,.28); }
+body.dark .cell.win { background: #2b250e; }
+.piece { width: min(64px, 72%); height: min(64px, 72%); display: grid; place-items: center; cursor: pointer; border-radius: 10px; }
+.piece svg { width: 100%; height: 100%; display: block; }
+#banner { min-height: 26px; padding: 6px 10px; border-radius: 8px; font-weight: 600; background: #fdfbf3; border: 1px solid var(--line); }
+body.dark #banner { background: #141a24; }
+#banner.won { background: #dcfce7; border-color: var(--good); color: #14532d; }
+#banner.dead { background: #fee2e2; border-color: var(--bad); color: #7f1d1d; }
+body.dark #banner.won { background: #06351f; color: #bbf7d0; }
+body.dark #banner.dead { background: #3f1010; color: #fecaca; }
+#trayCard { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 10px 12px; width: min(520px, 92vw); box-shadow: 0 3px 10px var(--shadow); }
+#trayCard h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
+.tray-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 8px; }
+#pool { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+#pool .piece { width: 100%; height: 54px; background: var(--cell); border: 1px solid var(--line); }
+#pool .piece:hover { border-color: var(--acc); }
+#pool .piece.disabled { opacity: .16; pointer-events: none; }
+#pool .piece svg { width: 34px; height: 34px; }
+#side { width: 300px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: 0 3px 10px var(--shadow); }
+.card h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--fg); cursor: pointer; }
+.check input { width: 15px; height: 15px; accent-color: var(--acc); }
+select { background: var(--btn); color: var(--fg); border: 1px solid #b9c2cf; border-radius: 8px; padding: 7px 10px; font-size: 13px; cursor: pointer; }
+body.dark select { border-color: #334155; }
+select:hover { border-color: var(--acc); }
+#aiside[hidden] { display: none; }
+#oppositeRow[hidden] { display: none; }
+#diffRow[hidden] { display: none; }
+#oppositeSection[hidden] { display: none; }
+#oppositeFold[hidden] { display: none; }
+.insert { color: var(--bad); font-style: italic; font-weight: 700; }
+#nowPiece { height: 96px; display: grid; place-items: center; background: var(--soft); border: 2px solid var(--acc); border-radius: 10px; margin-bottom: 8px; font-weight: 700; color: var(--mut); }
+#nowPiece svg { width: 68px; height: 68px; }
+.stat { display: flex; justify-content: space-between; font-size: 13px; padding: 2px 0; }
+.stat b { font-variant-numeric: tabular-nums; }
+#aiCard { background: #e6f6fb; border: 1px solid var(--acc); border-radius: 10px; padding: 10px 14px; margin: 4px 0 12px; box-shadow: 0 3px 10px var(--shadow); }
+body.dark #aiCard { background: #0e2230; }
+#aiCard .t { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--acc); margin-bottom: 4px; }
+.fold .fold-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .15s ease, opacity .15s ease; }
+.fold:hover .fold-body { max-height: 220px; opacity: 1; }
+.fold-section { margin: 4px 0; }
+.fold-head { font-weight: 800; cursor: pointer; padding: 3px 0; }
+.fold-section .fold-body { max-height: 0; opacity: 0; overflow: hidden; transition: max-height .18s ease, opacity .18s ease; }
+.fold-section .fold-body p { margin: 6px 0; }
+.fold-section:hover .fold-body, .fold-section.open .fold-body, #infoInner.show-all .fold-body { max-height: 600px; opacity: 1; }
+#oppositeSection[hidden] { display: none; }
+#infoModal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 20; backdrop-filter: blur(2px); }
+#infoModal[hidden] { display: none; }
+#infoInner { position: relative; background: var(--card); border: 2px solid var(--acc); border-radius: 14px; padding: 24px 28px; max-width: 560px; margin: 0 16px; box-shadow: 0 18px 60px rgba(0,0,0,.6); }
+#infoInner h2 { margin: 0 0 8px; padding-right: 36px; }
+#infoInner p { color: var(--fg); } #infoInner ul { color: var(--fg); }
+#puzzleModal { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 20; backdrop-filter: blur(2px); }
+#puzzleModal[hidden] { display: none; }
+#puzzleInner { position: relative; background: var(--card); border: 2px solid var(--acc); border-radius: 14px; padding: 24px 28px; width: min(560px, calc(100vw - 32px)); max-height: 84vh; overflow: auto; box-shadow: 0 18px 60px rgba(0,0,0,.6); }
+#puzzleInner h2 { margin: 0 0 8px; padding-right: 36px; }
+#puzzleClose { position: absolute; top: 6px; right: 6px; padding: 4px 9px; }
+.puz { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 10px 12px; }
+.puz .n { font-weight: 800; font-size: 15px; }
+.puz .b { color: var(--mut); font-size: 12px; margin-top: 2px; }
+.puz .done { color: var(--good); font-weight: 700; }
+#menuRow { justify-content: space-between; align-items: center; }
+#puzzleAdvance[hidden] { display: none; }
+#puzzleBack[hidden] { display: none; }
+#infoInner .credit { color: var(--mut); }
+#infoInner a { color: var(--acc); font-weight: 700; }
+#eggToast { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); background: #10161f; color: #ffd66e; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; z-index: 9999; box-shadow: 0 6px 20px rgba(0,0,0,.28); border: 1px solid rgba(251,191,36,.35); }
+#confettiBox { position: fixed; inset: 0; pointer-events: none; z-index: 9998; overflow: hidden; }
+#confettiBox i { position: absolute; top: -12px; display: block; animation: egg-fall linear forwards; }
+@keyframes egg-fall { to { transform: translateY(110vh) rotate(720deg); } }
+@media (max-width: 560px) { #themeToggle { top: 8px; right: 52px; width: 40px; height: 40px; } #infoBtn { top: 8px; right: 8px; width: 40px; height: 40px; } #puzzleBtn { top: 8px; right: 96px; width: 40px; height: 40px; } header h1 { padding-right: 144px; } }
+</style>
+</head>
+<body class="light">
+<header>
+  <h1>Dictate</h1>
+  <p class="sub" id="tagline">Make a four in a row using pieces the other player gives you.</p>
+</header>
+<button id="puzzleBtn" title="Puzzles" aria-label="Puzzles">🧩</button>
+<button id="infoBtn" title="How to play" aria-label="How to play">?</button>
+<button id="themeToggle" title="Toggle light / dark" aria-label="Toggle light / dark"></button>
+
+<section>
+  <div class="row"><h2 id="turnTitle">Player 1</h2></div>
+  <p id="blurb">Give your opponent a piece, let them place it, then get the next piece they force on you. Good luck.</p>
+  <main id="gameMain">
+    <div id="boardWrap">
+      <div id="boardRow">
+        <div id="evalCol"><div id="evalbar" title="Player 1 50%"><div id="evalwhite"></div></div><div id="evalnum">50</div></div>
+        <div id="boardCard"><div id="board"></div></div>
+      </div>
+      <div id="banner">Move 1/16 — Player 1 gives Player 2 a piece.</div>
+    </div>
+    <div id="side">
+      <div id="trayCard"><div class="tray-head"><h3>Remaining pieces</h3><label class="check"><input type="checkbox" id="showAll" checked> Show all</label></div><div id="pool"></div></div>
+      <div class="card"><h3>Controls</h3><div id="controls"><div id="nowPiece"></div><div class="row"><button id="undo">↩ Undo (Z/U)</button><button id="reset">Reset (R)</button></div><div class="row"><label class="check"><input type="checkbox" id="advanced"> Advanced 2×2</label></div><div class="row"><label class="check"><input type="checkbox" id="vsai"> AI opponent</label><select id="aiside" hidden><option value="0">Player 1</option><option value="1" selected>Player 2</option><option value="2">Both</option></select></div><div class="row" id="diffRow" hidden><label for="aidiff">Level</label><select id="aidiff"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></div><div class="row" id="oppositeRow" hidden><label class="check"><input type="checkbox" id="opposite"> Opposite Mode</label></div></div></div>
+    </div>
+  </main>
+  <div id="aiCard" class="card fold"><div class="t">Hot-seat rules</div><div class="fold-body">Two players, one board. You choose what they must place; they place it, then choose what you must place. The AI opponent in Controls plays the selected mode and side. Advanced 2×2 mode also lets any contiguous 2×2 block win. <span id="oppositeFold" hidden>Opposite Mode reverses it: whoever completes a shape loses.</span> Four in a row, column, or diagonal wins if all four pieces share on at least one trait.</div></div>
+</section>
+
+<div id="puzzleModal" hidden>
+  <div id="puzzleInner">
+    <button id="puzzleClose" class="ghost" title="Close">✕</button>
+    <h2 id="puzzleTitle">Puzzles</h2>
+    <div id="puzzleList"></div>
+    <div class="row" id="menuRow"><button id="puzzleFree" class="ghost">Free play</button><span><button id="puzzleBack" class="ghost" hidden>← Levels 1–5</button><button id="puzzleAdvance" class="ghost" hidden>Advance →</button></span></div>
+  </div>
+</div>
+
+<div id="infoModal" hidden>
+  <div id="infoInner">
+    <button id="infoClose" class="ghost" title="Close">✕</button>
+    <h2>How to play Dictate</h2>
+    <p>There are 16 pieces with four binary traits: solid or dashed, red or blue, square or circle, and triangle or empty.</p>
+    <p>On your turn you give your opponent one unused piece. They must place it on an empty square. If it completes a winning shape, they win. Otherwise they give you a piece, and play continues.</p>
+    <div class="row"><label class="check"><input type="checkbox" id="infoAll"> Show all</label></div>
+    <div class="fold-section"><div class="fold-head">• Advanced 2×2</div><div class="fold-body"><p>Advanced 2×2 is optional: classic Dictate uses the same 10 rows, columns, and diagonals. Advanced 2×2 keeps those 10 and adds the 9 contiguous 2×2 blocks, so any 2×2 block also wins when all four pieces share at least one trait. That makes 19 possible winning shapes. Switching modes resets the board.</p></div></div>
+    <div class="fold-section"><div class="fold-head">• AI opponent</div><div class="fold-body"><p>AI opponent plays whichever mode is selected: turn on AI opponent in Controls and pick its side — Player 1 (it moves first), Player 2 (you move first), or Both to watch it play itself. It takes immediate wins, never hands you a piece you could win with right away (and when defeat is forced, it concedes the fewest simultaneous wins), blocks three-in-a-row threats, and searches the endgame exactly with alpha-beta pruning when few pieces remain. Levels: Easy plays casually and donates carelessly, Normal thinks ahead, Hard searches deeper. Switching modes or sides resets the board.</p></div></div>
+    <div class="fold-section" id="oppositeSection" hidden><div class="fold-head">• Opposite Mode</div><div class="fold-body"><p>Opposite Mode is misère Dictate: whoever completes a winning shape LOSES, so you win by forcing your opponent to finish a line — or a 2×2 block in Advanced mode. Draws work the same: if no shape can ever be completed, the game is drawn.</p></div></div>
+    <div class="fold-section"><div class="fold-head">• Puzzles</div><div class="fold-body"><p>Puzzles (🧩 top-right): hand-checked positions built from real engine analysis — spot the winning placement, find the only safe donation, escape a misère trap, or deliver a killer gift. Wrong attempts are taken back automatically; solves are counted in tries.</p></div></div>
+    <p>Controls: <kbd>Z</kbd>/<kbd>U</kbd> undo, <kbd>R</kbd> reset, <kbd>E</kbd> eval bar, <kbd>L</kbd> light or dark, <kbd>I</kbd> or <kbd>?</kbd> info, <kbd>Esc</kbd> close.</p>
+    <p class="credit">Made by <a id="dictateEgg" href="https://github.com/malcolmblakeman" target="_blank" rel="noopener" title="Psst... click me">Malcolm Blakeman</a></p>
+  </div>
+</div>
+
+<script>
+const LINES=[[0,1,2,3],[4,5,6,7],[8,9,10,11],[12,13,14,15],[0,4,8,12],[1,5,9,13],[2,6,10,14],[3,7,11,15],[0,5,10,15],[3,6,9,12]];
+const SQUARES=[[0,1,4,5],[1,2,5,6],[2,3,6,7],[4,5,8,9],[5,6,9,10],[6,7,10,11],[8,9,12,13],[9,10,13,14],[10,11,14,15]];
+const POOL_ORDER=[12,14,13,15,4,6,5,7,8,10,9,11,0,2,1,3];
+const PUZZLES=[
+ {name:'1 · Take the win',kind:'win-now',advanced:false,misere:false,side:0,moves:12,offered:12,phase:'place',board:[14,15,10,4,3,null,1,null,11,5,6,7,null,0,13,null],goal:'Place the offered piece to complete a shape.'},
+ {name:'2 · The safe donation',kind:'safe-gift',advanced:false,misere:false,side:0,moves:12,offered:null,phase:'give',board:[3,null,0,4,15,null,1,11,13,8,6,10,null,9,null,5],goal:'Donate a piece your opponent cannot win with immediately.'},
+ {name:'3 · Square eyes',kind:'win-now',advanced:true,misere:false,side:0,moves:12,offered:1,phase:'place',board:[2,4,12,5,7,14,8,6,13,null,null,10,null,null,11,0],goal:'Advanced mode: complete a 2×2 block.'},
+ {name:'4 · No sudden moves',kind:'escape',advanced:false,misere:true,side:0,moves:12,offered:3,phase:'place',board:[7,8,2,9,11,null,15,1,14,4,12,null,null,13,null,5],goal:'Opposite rules: place WITHOUT completing a shape.'},
+ {name:'5 · The killer donation',kind:'killer-gift',advanced:false,misere:true,side:0,moves:12,offered:null,phase:'give',board:[1,null,4,5,9,10,12,null,null,14,15,3,null,0,2,11],goal:'Opposite rules: donate a piece your opponent cannot survive.'},
+ {name:'6 · Square column',kind:'win-now',advanced:false,misere:false,side:0,moves:13,offered:9,phase:'place',board:[null,12,14,null,4,15,null,11,8,10,0,5,13,6,3,2],goal:'Place the offered piece to complete a shape.'},
+ {name:'7 · Minefield donation',kind:'safe-gift',advanced:true,misere:false,side:0,moves:12,offered:null,phase:'give',board:[6,4,12,3,13,9,15,null,14,5,10,null,8,2,null,null],goal:'Advanced mode: donate a piece with no immediate win for your opponent.'},
+ {name:'8 · Thread the needle',kind:'escape',advanced:true,misere:true,side:0,moves:12,offered:5,phase:'place',board:[null,7,15,10,13,null,9,null,8,14,null,0,1,4,12,2],goal:'Opposite rules, Advanced mode: place WITHOUT completing a shape.'},
+ {name:'9 · Killer instinct',kind:'killer-gift',advanced:false,misere:true,side:0,moves:12,offered:null,phase:'give',board:[null,8,2,13,1,5,null,3,12,null,7,4,6,null,11,15],goal:'Opposite rules: donate a piece your opponent cannot survive.'},
+ {name:'10 · Two for one',kind:'win-now',advanced:true,misere:false,side:0,moves:13,offered:13,phase:'place',board:[4,10,8,11,14,null,2,6,null,3,1,null,5,9,12,15],goal:'Advanced mode: complete a shape.'}
+];
+let PUZZLE=null;
+let PUZ_WING=0;
+let S, HIST=[], SHOW_ALL=true, SHOW_BAR=false, ADVANCED=false, MISERE=false, VS_AI=false, AI_SIDE=1, AI_DIFF='normal', AI_BUSY=false, AI_TOKEN=0;
+function winShapes(){return ADVANCED?LINES.concat(SQUARES):LINES;}
+function piece(id){return{solid:(id>>3)&1,blue:(id>>2)&1,circle:(id>>1)&1,triangle:id&1};}
+function fresh(){return{board:Array(16).fill(null),used:Array(16).fill(false),offered:null,phase:'give',current:0,moves:0,over:false,winner:null,result:null,wins:[],lastPlaced:null};}
+function push(){HIST.push(JSON.stringify(S));}
+function remaining(){return [...Array(16).keys()].filter(id=>!S.used[id]);}
+function winning(b){
+ const out=[];
+ for(const line of winShapes()){
+  if(line.every(i=>b[i]!==null)){
+   const ps=line.map(i=>piece(b[i]));
+   if(['solid','blue','circle','triangle'].some(a=>ps.every(p=>p[a]===ps[0][a]))) out.push(line);
+  }
+ }
+ return out;
+}
+function sharedTraits(line,b){const ps=line.map(i=>piece(b[i]));const t=[];if(ps.every(p=>p.solid===ps[0].solid))t.push(ps[0].solid?'solid':'dashed');if(ps.every(p=>p.blue===ps[0].blue))t.push(ps[0].blue?'blue':'red');if(ps.every(p=>p.circle===ps[0].circle))t.push(ps[0].circle?'circle':'square');if(ps.every(p=>p.triangle===ps[0].triangle))t.push(ps[0].triangle?'triangle':'no triangle');return t;}
+function futureWin(b,left){
+ if(winning(b).length) return true;
+ if(!left.length) return false;
+ const empties=b.map((x,i)=>x===null?i:-1).filter(i=>i>=0);
+ for(const id of left) for(const sq of empties){
+  const nb=b.slice(); nb[sq]=id;
+  if(futureWin(nb,left.filter(x=>x!==id))) return true;
+ }
+ return false;
+}
+function dead(){const left=remaining(); return left.length<=3 && !futureWin(S.board.slice(),left);}
+function el(id){return document.getElementById(id);}
+function setBanner(cls,msg){const b=el('banner'); b.className=cls||''; b.textContent=msg;}
+function moveLabel(){return 'Move '+Math.min(16,S.moves+(S.phase==='place'?2:1))+'/16';}
+function poolCols(n){if(n>=13)return 4;if(n>=7)return 3;if(n>=4)return 2;return 1;}
+function toggleBar(){SHOW_BAR=!SHOW_BAR;render();}
+function evalScore(){
+ if(S.over){
+  if(S.result==='win')return S.winner===0?AI_MATE:-AI_MATE;
+  return 0;
+ }
+ AI_SHAPES=ADVANCED?LINES.concat(SQUARES):LINES;
+ AI_SHAPES_BY_CELL=ADVANCED?AI_ALL_BY_CELL:AI_LINES_BY_CELL;
+ const st={nodes:0,aborted:false,deadline:Date.now()+120,maxNodes:20000};
+ const depth=(()=>{const R=remaining().length;if(R<=4)return 5;if(R<=7)return 3;if(R<=10)return 2;return 1;})();
+ if(S.phase==='place'&&S.offered!==null)return aiNodePlace(S.board.slice(),aiMask(S.used),S.offered,S.current,depth,-Infinity,Infinity,st,0);
+ return aiNodeGive(S.board.slice(),aiMask(S.used),S.current,depth,-Infinity,Infinity,st,0);
+}
+function evalPct(){
+ const s=evalScore();
+ if(s>=AI_MATE/2)return 100;
+ if(s<=-AI_MATE/2)return 0;
+ return 50+50*s/(Math.abs(s)+200);
+}
+const AI_MATE=10000;
+const AI_ATTR=[];for(let i=0;i<16;i++)AI_ATTR.push([(i>>3)&1,(i>>2)&1,(i>>1)&1,i&1]);
+const AI_LINES_BY_CELL=Array.from({length:16},()=>[]);
+LINES.forEach((line,li)=>line.forEach(c=>AI_LINES_BY_CELL[c].push(li)));
+const AI_SQ_ORDER=[5,6,9,10,1,2,4,7,8,11,13,14,0,3,12,15];
+let AI_SHAPES=LINES;
+let AI_SHAPES_BY_CELL=AI_LINES_BY_CELL;
+const AI_ALL_BY_CELL=Array.from({length:16},()=>[]);
+LINES.concat(SQUARES).forEach((line,li)=>line.forEach(c=>AI_ALL_BY_CELL[c].push(li)));
+function aiControls(i){return VS_AI&&(AI_SIDE===2||i===AI_SIDE);}
+function who(i){if(aiControls(i))return AI_SIDE===2?'AI '+(i+1):'AI';return 'Player '+(i+1);}
+function isAiTurn(){return VS_AI&&!S.over&&aiControls(S.current);}
+function humanTurn(){return !S.over&&!AI_BUSY&&!aiControls(S.current);}
+function maybeAi(){
+ if(AI_BUSY||!isAiTurn())return;
+ AI_BUSY=true;render();
+ const t=++AI_TOKEN;
+ setTimeout(()=>{if(t!==AI_TOKEN){AI_BUSY=false;return;}aiStep();AI_BUSY=false;if(t!==AI_TOKEN)return;render();if(isAiTurn())maybeAi();},450);
+}
+function aiStep(){
+ if(!isAiTurn())return;
+ AI_SHAPES=ADVANCED?LINES.concat(SQUARES):LINES;
+ AI_SHAPES_BY_CELL=ADVANCED?AI_ALL_BY_CELL:AI_LINES_BY_CELL;
+ if(AI_DIFF==='easy'){easyStep();return;}
+ const R=remaining().length;
+ const lim=AI_DIFF==='hard'
+  ?(R<=4?{depth:14,maxNodes:400000,ms:1500}:R<=7?{depth:8,maxNodes:250000,ms:1200}:R<=10?{depth:6,maxNodes:150000,ms:800}:{depth:4,maxNodes:80000,ms:600})
+  :(R<=4?{depth:12,maxNodes:250000,ms:1000}:R<=7?{depth:6,maxNodes:150000,ms:800}:R<=10?{depth:4,maxNodes:80000,ms:500}:{depth:2,maxNodes:40000,ms:350});
+ const deadline=Date.now()+lim.ms;
+ const me=S.current;
+ if(S.phase==='place')place(aiRootPlace(S.board.slice(),aiMask(S.used),S.offered,lim,deadline,me),true);
+ else give(aiRootGift(S.board.slice(),aiMask(S.used),lim,deadline,me),true);
+}
+function easyStep(){
+ const b=S.board;
+ if(S.phase==='place'){
+  const pid=S.offered;
+  if(!MISERE){
+   const w=aiImmediateWinCells(b.slice(),pid);
+   if(w.length){place(w[0],true);return;}
+  }else{
+   const s=aiSafeCells(b.slice(),pid);
+   if(s.length){place(s[Math.floor(Math.random()*s.length)],true);return;}
+  }
+  const em=aiEmpties(b);
+  place(em[Math.floor(Math.random()*em.length)],true);
+ }else{
+  const un=aiUnused(aiMask(S.used));
+  give(un[Math.floor(Math.random()*un.length)],true);
+ }
+}
+function aiMask(used){let m=0;for(let i=0;i<16;i++)if(used[i])m|=1<<i;return m;}
+function aiUnused(mask){const o=[];for(let i=0;i<16;i++)if(!(mask&1<<i))o.push(i);return o;}
+function aiEmpties(b){const o=[];for(let i=0;i<16;i++)if(b[i]===null)o.push(i);return o;}
+function aiLineWins(b,line){
+ const a0=AI_ATTR[b[line[0]]];
+ for(let k=0;k<4;k++){const v=a0[k];let ok=true;for(let j=1;j<4;j++)if(AI_ATTR[b[line[j]]][k]!==v){ok=false;break;}if(ok)return true;}
+ return false;
+}
+function aiBoardWin(b){for(const line of AI_SHAPES){let full=true;for(const c of line)if(b[c]===null){full=false;break;}if(full&&aiLineWins(b,line))return true;}return false;}
+function aiImmediateWinCells(b,pid){
+ const out=[];
+ for(const sq of aiEmpties(b)){
+  b[sq]=pid;let w=false;
+  for(const li of AI_SHAPES_BY_CELL[sq]){const line=AI_SHAPES[li];let full=true;for(const c of line)if(b[c]===null){full=false;break;}if(full&&aiLineWins(b,line)){w=true;break;}}
+  b[sq]=null;if(w)out.push(sq);
+ }
+ return out;
+}
+function aiConcede(b,g){
+ let worst=0,total=0;
+ for(const sq of aiEmpties(b)){
+  b[sq]=g;let n=0;
+  for(const li of AI_SHAPES_BY_CELL[sq]){const line=AI_SHAPES[li];let full=true;for(const c of line)if(b[c]===null){full=false;break;}if(full&&aiLineWins(b,line))n++;}
+  b[sq]=null;
+  if(n>0){total+=n;if(n>worst)worst=n;}
+ }
+ return {worst,total};
+}
+function aiLiveThreats(b,mask){
+ let t=0;
+ for(const line of AI_SHAPES){
+  let gaps=0;const ids=[];
+  for(const c of line){const v=b[c];if(v===null)gaps++;else ids.push(v);}
+  if(gaps!==1)continue;
+  for(let k=0;k<4;k++){const v=AI_ATTR[ids[0]][k];
+   if(AI_ATTR[ids[1]][k]===v&&AI_ATTR[ids[2]][k]===v){
+    for(let p=0;p<16;p++)if(!(mask&1<<p)&&AI_ATTR[p][k]===v){t++;break;}
+   }
+  }
+ }
+ return t;
+}
+function aiH(b,mask,turn,me){
+ if(MISERE){
+  let E=0;for(let i=0;i<16;i++)if(b[i]===null)E++;
+  let minSafe=Infinity;
+  for(const g of aiUnused(mask)){
+   const s=aiSafeCells(b,g).length;
+   if(s<minSafe)minSafe=s;
+   if(minSafe===0)break;
+  }
+  if(minSafe===Infinity)minSafe=E;
+  return (turn===me?-1:+1)*(minSafe-E)*10;
+ }
+ const t=aiLiveThreats(b,mask);
+ return (turn===me?-1:1)*t*10;
+}
+function aiSafeCells(b,pid){
+ const out=[];
+ for(const sq of AI_SQ_ORDER){
+  if(b[sq]!==null)continue;
+  b[sq]=pid;let bad=false;
+  for(const li of AI_SHAPES_BY_CELL[sq]){const line=AI_SHAPES[li];let full=true;for(const c of line)if(b[c]===null){full=false;break;}if(full&&aiLineWins(b,line)){bad=true;break;}}
+  b[sq]=null;if(!bad)out.push(sq);
+ }
+ return out;
+}
+function aiNodePlace(b,mask,pid,turn,depth,alpha,beta,st,me){
+ st.nodes++;
+ if(st.nodes>st.maxNodes||((st.nodes&1023)===0&&Date.now()>st.deadline)){st.aborted=true;return aiH(b,mask,turn,me);}
+ if(MISERE){
+  const safe=[];
+  for(const sq of AI_SQ_ORDER){
+   if(b[sq]!==null)continue;
+   b[sq]=pid;let bad=false;
+   for(const li of AI_SHAPES_BY_CELL[sq]){const line=AI_SHAPES[li];let full=true;for(const c of line)if(b[c]===null){full=false;break;}if(full&&aiLineWins(b,line)){bad=true;break;}}
+   b[sq]=null;if(!bad)safe.push(sq);
+  }
+  if(!safe.length)return (turn===me?-1:+1)*(AI_MATE+depth);
+  if(depth<=0)return aiH(b,mask,turn,me);
+  let best=turn===me?-Infinity:Infinity;
+  for(const sq of safe){
+   b[sq]=pid;
+   const s=aiNodeGive(b,mask|1<<pid,turn,depth-1,alpha,beta,st,me);
+   b[sq]=null;
+   if(st.aborted)return s;
+   if(turn===me){if(s>best)best=s;if(s>alpha)alpha=s;if(alpha>=beta)break;}
+   else{if(s<best)best=s;if(s<beta)beta=s;if(alpha>=beta)break;}
+  }
+  return best;
+ }
+ if(aiImmediateWinCells(b,pid).length)return (turn===me?1:-1)*(AI_MATE+depth);
+ if(depth<=0)return aiH(b,mask,turn,me);
+ let best=turn===me?-Infinity:Infinity;
+ for(const sq of AI_SQ_ORDER){
+  if(b[sq]!==null)continue;
+  b[sq]=pid;
+  const s=aiNodeGive(b,mask|1<<pid,turn,depth-1,alpha,beta,st,me);
+  b[sq]=null;
+  if(st.aborted)return s;
+  if(turn===me){if(s>best)best=s;if(s>alpha)alpha=s;if(alpha>=beta)break;}
+  else{if(s<best)best=s;if(s<beta)beta=s;if(alpha>=beta)break;}
+ }
+ return best;
+}
+function aiNodeGive(b,mask,turn,depth,alpha,beta,st,me){
+ st.nodes++;
+ if(st.nodes>st.maxNodes||((st.nodes&1023)===0&&Date.now()>st.deadline)){st.aborted=true;return aiH(b,mask,turn,me);}
+  const un=aiUnused(mask);
+  if(!un.length)return 0;
+  if(MISERE){
+   for(const g of un){if(aiSafeCells(b,g).length===0)return (turn===me?+1:-1)*(AI_MATE+depth);}
+   if(depth<=0)return aiH(b,mask,turn,me);
+   let best=turn===me?-Infinity:Infinity;
+   for(const g of un){
+    const s=aiNodePlace(b,mask,g,1-turn,depth-1,alpha,beta,st,me);
+    if(st.aborted)return s;
+    if(turn===me){if(s>best)best=s;if(s>alpha)alpha=s;if(alpha>=beta)break;}
+    else{if(s<best)best=s;if(s<beta)beta=s;if(alpha>=beta)break;}
+   }
+   return best;
+  }
+ const safe=[];
+ let doomed=true;
+ for(const g of un){if(aiImmediateWinCells(b,g).length){}else{safe.push(g);doomed=false;}}
+ if(doomed)return (turn===me?-1:1)*(AI_MATE+depth);
+ if(depth<=0)return aiH(b,mask,turn,me);
+ let best=turn===me?-Infinity:Infinity;
+ for(const g of safe){
+  const s=aiNodePlace(b,mask,g,1-turn,depth-1,alpha,beta,st,me);
+  if(st.aborted)return s;
+  if(turn===me){if(s>best)best=s;if(s>alpha)alpha=s;if(alpha>=beta)break;}
+  else{if(s<best)best=s;if(s<beta)beta=s;if(alpha>=beta)break;}
+ }
+ return best;
+}
+function aiPopcount(x){x&=15;let n=0;while(x){n+=x&1;x>>=1;}return n;}
+function aiMirrorScore(g){if(S.lastPlaced===null||S.lastPlaced===undefined)return 0;return aiPopcount(g^S.lastPlaced);}
+function aiHeuristicPlacement(b,mask,pid){
+ if(MISERE){
+  const safe=aiSafeCells(b,pid);
+  if(safe.length)return safe[0];
+  let best=aiEmpties(b)[0],bn=Infinity;
+  for(const sq of aiEmpties(b)){
+   b[sq]=pid;let n=0;
+   for(const li of AI_SHAPES_BY_CELL[sq]){const line=AI_SHAPES[li];let full=true;for(const c of line)if(b[c]===null){full=false;break;}if(full&&aiLineWins(b,line))n++;}
+   b[sq]=null;
+   if(n<bn){bn=n;best=sq;}
+  }
+  return best;
+ }
+ const empt=aiEmpties(b);
+ const cover={};
+ for(const line of AI_SHAPES){
+  let gaps=0,empty=-1;const ids=[];
+  for(const c of line){const v=b[c];if(v===null){gaps++;empty=c;}else ids.push(v);}
+  if(gaps!==1)continue;
+  for(let k=0;k<4;k++){const v=AI_ATTR[ids[0]][k];
+   if(AI_ATTR[ids[1]][k]===v&&AI_ATTR[ids[2]][k]===v){
+    let live=false;for(let p=0;p<16;p++)if(!(mask&1<<p)&&AI_ATTR[p][k]===v){live=true;break;}
+    if(live)cover[empty]=(cover[empty]||0)+1;
+   }
+  }
+ }
+ let best=empt[0],bestCover=-1;
+ for(const sq of AI_SQ_ORDER){if(b[sq]!==null)continue;const c=cover[sq]||0;if(c>bestCover){bestCover=c;best=sq;}}
+ if(bestCover>0)return best;
+ let bt=Infinity;
+ for(const sq of empt){b[sq]=pid;const t=aiLiveThreats(b,mask|1<<pid);b[sq]=null;if(t<bt){bt=t;best=sq;}}
+ return best;
+}
+function aiRootPlace(b,mask,pid,lim,deadline,me){
+ if(MISERE){
+  const safe=aiSafeCells(b,pid);
+  if(safe.length<=1)return aiHeuristicPlacement(b,mask,pid);
+  const st={nodes:0,aborted:false,deadline,maxNodes:lim.maxNodes};
+  let bestSq=safe[0],bestList=null,bestScore=-Infinity,alpha=-Infinity;
+  for(const sq of safe){
+   b[sq]=pid;
+   const s=aiNodeGive(b,mask|1<<pid,me,lim.depth-1,alpha,Infinity,st,me);
+   b[sq]=null;
+   if(st.aborted)break;
+   if(s>bestScore){bestScore=s;bestList=[sq];}
+   else if(s===bestScore){bestList.push(sq);}
+   if(s>alpha)alpha=s;
+  }
+  if(bestList&&bestList.length)return bestList[Math.floor(Math.random()*bestList.length)];
+  return bestSq;
+ }
+ const wins=aiImmediateWinCells(b,pid);
+ if(wins.length)return wins[0];
+ const empt=aiEmpties(b);
+ if(empt.length===1)return empt[0];
+ const st={nodes:0,aborted:false,deadline,maxNodes:lim.maxNodes};
+ let bestSq=aiHeuristicPlacement(b,mask,pid),bestList=null,bestScore=-Infinity,alpha=-Infinity;
+ for(const sq of AI_SQ_ORDER){
+  if(b[sq]!==null)continue;
+  b[sq]=pid;
+  const s=aiNodeGive(b,mask|1<<pid,me,lim.depth-1,alpha,Infinity,st,me);
+  b[sq]=null;
+  if(st.aborted)break;
+  if(s>bestScore){bestScore=s;bestList=[sq];}
+  else if(s===bestScore){bestList.push(sq);}
+  if(s>alpha)alpha=s;
+ }
+ if(bestList&&bestList.length)return bestList[Math.floor(Math.random()*bestList.length)];
+ return bestSq;
+}
+function aiRootGift(b,mask,lim,deadline,me){
+ const un=aiUnused(mask);
+ if(MISERE){
+  const killers=un.filter(g=>aiSafeCells(b,g).length===0);
+  const byMirror=a=>a.slice().sort((x,y)=>aiMirrorScore(y)-aiMirrorScore(x));
+  if(killers.length)return byMirror(killers)[0];
+  if(un.length===1)return un[0];
+  const ordered=byMirror(un);
+  const st={nodes:0,aborted:false,deadline,maxNodes:lim.maxNodes};
+  let best=ordered[0],bestScore=-Infinity,alpha=-Infinity;
+  const tied=[];
+  for(const g of ordered){
+   const s=aiNodePlace(b,mask,g,1-me,lim.depth-1,alpha,Infinity,st,me);
+   if(st.aborted)break;
+   if(s>bestScore){bestScore=s;best=g;tied.length=0;tied.push(g);}
+   else if(s===bestScore){tied.push(g);}
+   if(s>alpha)alpha=s;
+  }
+  if(tied.length)return tied[Math.floor(Math.random()*tied.length)];
+  return best;
+ }
+ const safe=un.filter(g=>!aiImmediateWinCells(b,g).length);
+ if(!safe.length){
+  const doomed=un.slice().sort((x,y)=>aiMirrorScore(y)-aiMirrorScore(x));
+  let bestG=doomed[0],bw=Infinity,bt=Infinity;
+  for(const g of doomed){const r=aiConcede(b,g);if(r.worst<bw||(r.worst===bw&&r.total<bt)){bw=r.worst;bt=r.total;bestG=g;}}
+  return bestG;
+ }
+ if(safe.length===1)return safe[0];
+ const ordered=safe.slice().sort((x,y)=>aiMirrorScore(y)-aiMirrorScore(x));
+ const st={nodes:0,aborted:false,deadline,maxNodes:lim.maxNodes};
+ let best=ordered[0],bestScore=-Infinity,alpha=-Infinity;
+ const tied=[];
+ for(const g of ordered){
+  const s=aiNodePlace(b,mask,g,1-me,lim.depth-1,alpha,Infinity,st,me);
+  if(st.aborted)break;
+  if(s>bestScore){bestScore=s;best=g;tied.length=0;tied.push(g);}
+  else if(s===bestScore){tied.push(g);}
+  if(s>alpha)alpha=s;
+ }
+ if(tied.length)return tied[Math.floor(Math.random()*tied.length)];
+ return best;
+}
+function pieceSVG(id){
+ const p=piece(id),col=p.blue?'#2563eb':'#d64550',dash=p.solid?'':' stroke-dasharray="9 6"';
+ const outer=p.circle
+  ?'<circle cx="32" cy="32" r="24" fill="none" stroke="'+col+'" stroke-width="6"'+dash+'/>'
+  :'<rect x="8" y="8" width="48" height="48" rx="7" fill="none" stroke="'+col+'" stroke-width="6"'+dash+'/>';
+ const tri=p.triangle?'<path d="M32 21 L43 41 H21 Z" fill="'+col+'"/>':'';
+ return '<svg viewBox="0 0 64 64" aria-hidden="true">'+outer+tri+'</svg>';
+}
+function pieceNode(id){const w=document.createElement('div');w.className='piece';w.innerHTML=pieceSVG(id);return w;}
+function render(){
+ const bd=el('board');bd.innerHTML='';const human=humanTurn();bd.classList.toggle('live',human&&S.phase==='place');
+ S.board.forEach((id,i)=>{const c=document.createElement('div');c.className='cell'+(id!==null?' filled':'');if(S.wins.some(l=>l.includes(i)))c.classList.add('win');if(id!==null)c.appendChild(pieceNode(id));c.onclick=()=>{place(i);maybeAi();puzzleAfterMove();};bd.appendChild(c);});
+ const n=el('nowPiece');n.innerHTML='';n.appendChild(S.offered===null?document.createTextNode('Give a piece'):pieceNode(S.offered));
+ const pool=el('pool');pool.innerHTML='';let shown=0;
+ const canGive=human&&S.phase==='give';
+ for(const id of POOL_ORDER){const gone=S.used[id]||S.offered===id; if(!SHOW_ALL&&gone)continue; const p=pieceNode(id); if(S.used[id]||(S.offered===id&&canGive))p.classList.add('disabled'); if(!S.used[id]&&canGive&&S.offered!==id)p.onclick=()=>{give(id);maybeAi();puzzleAfterMove();}; pool.appendChild(p);shown++;}
+ pool.style.gridTemplateColumns=shown?('repeat('+poolCols(shown)+', minmax(0,1fr))'):'';
+ el('undo').disabled=HIST.length===0;
+ el('turnTitle').textContent=who(S.current);
+ el('tagline').innerHTML=MISERE?'<span class="insert">Don\'t</span> Make a four in a row using pieces the other player gives you.':'Make a four in a row using pieces the other player gives you.';
+ if(SHOW_BAR&&!PUZZLE){
+  const pct=Math.round(evalPct());
+  el('evalCol').style.display='';
+  el('evalwhite').style.height=pct+'%';
+  el('evalnum').textContent=pct;
+  el('evalbar').title='Player 1 '+pct+'%';
+ }else{
+  el('evalCol').style.display='none';
+ }
+}
+function give(id,byAi){if(S.over||S.phase!=='give'||S.used[id])return;if(!byAi&&(AI_BUSY||aiControls(S.current)))return;push();S.offered=id;S.current=1-S.current;S.phase='place';setBanner('', moveLabel()+' — '+who(S.current)+' must place that piece.');render();}
+function place(sq,byAi){if(S.over||S.phase!=='place'||S.offered===null||S.board[sq]!==null)return;if(!byAi&&(AI_BUSY||aiControls(S.current)))return;push();const pid=S.offered;S.board[sq]=pid;S.used[pid]=true;S.offered=null;S.moves++;S.lastPlaced=pid;const w=winning(S.board);if(w.length){S.over=true;S.result='win';S.winner=MISERE?1-S.current:S.current;S.wins=w;const traits=[...new Set(w.flatMap(line=>sharedTraits(line,S.board)))];setBanner('won','Move '+S.moves+'/16 — 🏆 '+who(S.winner)+' wins — '+who(S.current)+' completed '+(traits.length?traits.join(', '):'four share a trait')+(MISERE?' and loses.':'.'));render();return;}const left=remaining();if(!left.length){S.over=true;S.result='draw';setBanner('','Move '+S.moves+'/16 — Draw — board full.');render();return;}if(dead()){S.over=true;S.result='forced draw';setBanner('dead','Move '+S.moves+'/16 — Forced draw — no future continuation can win.');render();return;}S.phase='give';setBanner('',moveLabel()+' — '+who(S.current)+' placed it; now give '+who(1-S.current)+' a piece.');render();}
+function undo(){if(!HIST.length)return;AI_TOKEN++;AI_BUSY=false;S=JSON.parse(HIST.pop());if(PUZZLE&&PUZZLE.done)PUZZLE.done=false;setBanner('',moveLabel()+' — back one step.');render();maybeAi();}
+function reset(){AI_TOKEN++;AI_BUSY=false;S=fresh();HIST=[];setBanner('',moveLabel()+' — '+who(0)+' gives '+who(1)+' a piece.');render();maybeAi();}
+function resetOrRetry(){if(PUZZLE)loadPuzzle(PUZZLE.idx);else exitPuzzle();}
+function exitPuzzle(keepOpposite){if(PUZZLE){SHOW_ALL=PUZZLE.prevShow;el('showAll').checked=PUZZLE.prevShow;PUZZLE=null;}if(!keepOpposite){MISERE=false;el('opposite').checked=false;}reset();}
+function loadPuzzle(idx){
+ const d=PUZZLES[idx];
+ ADVANCED=d.advanced;el('advanced').checked=d.advanced;
+ MISERE=d.misere;el('opposite').checked=d.misere;
+ VS_AI=false;el('vsai').checked=false;el('aiside').hidden=true;el('diffRow').hidden=true;
+ AI_SHAPES=ADVANCED?LINES.concat(SQUARES):LINES;
+ AI_SHAPES_BY_CELL=ADVANCED?AI_ALL_BY_CELL:AI_LINES_BY_CELL;
+ AI_TOKEN++;AI_BUSY=false;
+ const puUsed=Array(16).fill(false);d.board.forEach(v=>{if(v!==null)puUsed[v]=true;});
+ S={board:d.board.slice(),used:puUsed,offered:d.offered,phase:d.phase,current:d.side,moves:d.moves,over:false,winner:null,result:null,wins:[],lastPlaced:null};
+ HIST=[];
+ PUZZLE={idx,kind:d.kind,side:d.side,attempts:0,done:false,sig:null,prevShow:SHOW_ALL};
+ SHOW_ALL=false;el('showAll').checked=false;
+  setBanner('','🧩 '+d.name+': '+d.goal);
+  el('puzzleModal').hidden=true;
+  render();
+}
+function puzzleStore(){try{return JSON.parse(localStorage.getItem('dictateSolved')||'{}');}catch(e){return{};}}
+function markSolved(){
+ try{
+  const s=puzzleStore(),k=String(PUZZLE.idx),prev=s[k];
+  if(!prev||PUZZLE.attempts<prev.best)s[k]={done:true,best:PUZZLE.attempts};
+  else s[k].done=true;
+  localStorage.setItem('dictateSolved',JSON.stringify(s));
+ }catch(e){}
+}
+function wingUnlocked(){const s=puzzleStore();for(let i=0;i<5;i++){const st=s[String(i)];if(!st||!st.done)return false;}return true;}
+function openPuzzleMenu(){
+ const list=el('puzzleList');list.innerHTML='';
+ const s=puzzleStore();
+ if(PUZ_WING===1&&!wingUnlocked())PUZ_WING=0;
+ const wing=PUZ_WING;
+ el('puzzleTitle').textContent=wing?'Puzzles · 6–10':'Puzzles';
+ const defs=wing?PUZZLES.slice(5):PUZZLES.slice(0,5);
+ defs.forEach((d,k)=>{
+  const i=wing?k+5:k;
+  const b=document.createElement('button');b.className='puz';
+  const st=s[String(i)];
+  b.innerHTML='<div class="n">'+d.name+(st&&st.done?' <span class="done">✓'+(st.best?' · best '+st.best:'')+'</span>':'')+'</div><div class="b">'+d.goal+'</div>';
+  b.onclick=()=>loadPuzzle(i);
+  list.appendChild(b);
+ });
+ el('puzzleBack').hidden=wing!==1;
+ el('puzzleAdvance').hidden=!(wing===0&&wingUnlocked());
+ el('puzzleModal').hidden=false;
+}
+function puzzleAfterMove(){
+ if(!PUZZLE||PUZZLE.done)return;
+ const sig=JSON.stringify([S.board,S.offered,S.phase,S.current,S.moves]);
+ if(sig===PUZZLE.sig)return;
+ PUZZLE.attempts++;
+ const P=PUZZLE;
+ const solved=msg=>{P.done=true;PUZZLE.sig=sig;setBanner('won',msg);markSolved();openPuzzleMenu();};
+ const retry=msg=>{undo();PUZZLE.sig=JSON.stringify([S.board,S.offered,S.phase,S.current,S.moves]);setBanner('',msg+' (attempt '+P.attempts+')');};
+ const tries=P.attempts===1?'try':'tries';
+ if(P.kind==='win-now'){
+  if(S.over&&S.winner===P.side)solved('🏆 Puzzle solved in '+P.attempts+' '+tries+'! Pick another puzzle, or Free play for a full game.');
+  else retry('That doesn\'t complete a shape — try again.');
+  return;
+ }
+ if(P.kind==='safe-gift'){
+  if(!aiImmediateWinCells(S.board,S.offered).length)solved('🏆 Puzzle solved in '+P.attempts+' '+tries+'! Pick another puzzle, or Free play for a full game.');
+  else retry('That donation lets your opponent win immediately — try again.');
+  return;
+ }
+ if(P.kind==='escape'){
+  if(S.over&&S.result==='win')retry('That completes a shape — in Opposite Mode that loses. Try again.');
+  else solved('🏆 Puzzle solved in '+P.attempts+' '+tries+'! Pick another puzzle, or Free play for a full game.');
+  return;
+ }
+ if(P.kind==='killer-gift'){
+  if(aiSafeCells(S.board,S.offered).length===0)solved('🏆 Puzzle solved in '+P.attempts+' '+tries+'! Pick another puzzle, or Free play for a full game.');
+  else retry('Your opponent survives that donation — try again.');
+  return;
+ }
+}
+el('undo').onclick=undo; el('reset').onclick=resetOrRetry;
+el('puzzleBtn').onclick=()=>openPuzzleMenu();
+el('puzzleClose').onclick=()=>el('puzzleModal').hidden=true;
+el('puzzleModal').onclick=e=>{if(e.target===el('puzzleModal'))el('puzzleModal').hidden=true;};
+el('puzzleFree').onclick=()=>{el('puzzleModal').hidden=true;exitPuzzle();};
+el('puzzleAdvance').onclick=()=>{PUZ_WING=1;openPuzzleMenu();};
+el('puzzleBack').onclick=()=>{PUZ_WING=0;openPuzzleMenu();};
+el('showAll').onchange=e=>{SHOW_ALL=e.target.checked; render();};
+el('advanced').onchange=e=>{ADVANCED=e.target.checked;exitPuzzle();};
+el('vsai').onchange=e=>{VS_AI=e.target.checked;el('aiside').hidden=!VS_AI;el('diffRow').hidden=!VS_AI;exitPuzzle();};
+el('aiside').onchange=e=>{AI_SIDE=Number(e.target.value);exitPuzzle();};
+el('aidiff').onchange=e=>{AI_DIFF=e.target.value;};
+el('opposite').onchange=e=>{MISERE=e.target.checked;exitPuzzle(true);};
+const MOON='<svg viewBox="0 0 24 24" fill="#fbbf24" stroke="#92400e" stroke-width="1.4"><path d="M20 13.2A8.2 8.2 0 1 1 10.8 4 6.6 6.6 0 0 0 20 13.2z"/></svg>';
+const SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3L19 19M19 5l-1.7 1.7M6.7 17.3L5 19"/></svg>';
+function themePaint(){const b=document.body.classList.contains('dark');el('themeToggle').innerHTML=b?MOON:SUN;el('themeToggle').title=b?'Switch to light (L)':'Switch to dark (L)';}
+function themeToggle(){document.body.classList.toggle('dark');try{localStorage.setItem('dictateTheme',document.body.classList.contains('dark')?'dark':'light')}catch(e){}themePaint();}
+el('themeToggle').onclick=themeToggle;
+el('infoBtn').onclick=()=>el('infoModal').hidden=false;el('infoClose').onclick=()=>el('infoModal').hidden=true;el('infoModal').onclick=e=>{if(e.target===el('infoModal'))el('infoModal').hidden=true;};
+el('infoAll').onchange=e=>{el('infoInner').classList.toggle('show-all',e.target.checked);};
+el('infoInner').onclick=e=>{const h=e.target&&e.target.closest?e.target.closest('.fold-head'):null;if(h&&h.parentNode&&h.parentNode.classList)h.parentNode.classList.toggle('open');};
+(function(){
+ const egg=el('dictateEgg');
+ if(!egg||!egg.addEventListener)return;
+ let found=false;
+ egg.addEventListener('click',(e)=>{
+  if(!navigator.onLine)e.preventDefault();
+  if(found)return;
+  found=true;
+  try{localStorage.setItem('dictateEgg','1');}catch(_){}
+  el('oppositeRow').hidden=false;
+  el('oppositeSection').hidden=false;
+  el('oppositeFold').hidden=false;
+  const t=document.createElement('div');
+  t.id='eggToast';t.textContent='🥚 Easter egg';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2800);
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const box=document.createElement('div');
+  box.id='confettiBox';
+  const colors=['#d64550','#2563eb','#fbbf24','#4ade80','#a78bfa','#22d3ee'];
+  for(let i=0;i<90;i++){
+   const p=document.createElement('i');
+   const s=6+Math.random()*8;
+   p.style.left=(Math.random()*100)+'vw';
+   p.style.width=s+'px';p.style.height=(s*0.6)+'px';
+   p.style.background=colors[i%colors.length];
+   p.style.animationDuration=(2+Math.random()*2)+'s';
+   box.appendChild(p);
+  }
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(),4500);
+ });
+})();
+window.addEventListener('keydown',e=>{
+ if(e.target&&(e.target.tagName==='SELECT'||e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
+ const k=e.key.toLowerCase();
+ if(k==='l'){e.preventDefault();themeToggle();return;}
+ if(k==='escape'){el('infoModal').hidden=true;el('puzzleModal').hidden=true;return;}
+ if(!el('infoModal').hidden||!el('puzzleModal').hidden){if(k==='i')el('infoModal').hidden=true;return;}
+ if(k==='z'||k==='u')undo(); else if(k==='r')resetOrRetry(); else if(k==='e')toggleBar(); else if(k==='i')el('infoModal').hidden=false;
+});
+try{if(localStorage.getItem('dictateTheme')==='dark')document.body.classList.add('dark');}catch(e){}
+try{if(localStorage.getItem('dictateEgg')==='1'){el('oppositeRow').hidden=false;el('oppositeSection').hidden=false;el('oppositeFold').hidden=false;}}catch(e){}
+themePaint();reset();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(()=>{});});}
+</script>
+</body>
+</html>

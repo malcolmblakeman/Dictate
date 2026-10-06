@@ -1,0 +1,13 @@
+{
+  "name": "Dictate",
+  "short_name": "Dictate",
+  "description": "Dictate: give your opponent pieces, make four share a trait. Classic Quarto plus optional 2x2 mode, with AI opponent.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3efe4",
+  "theme_color": "#0e7490",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
